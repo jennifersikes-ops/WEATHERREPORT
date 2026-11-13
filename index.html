@@ -168,7 +168,7 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
 <section id="login" class="wrap" hidden>
   <div class="login">
     <h1>Sign in to the newsroom</h1>
-    <p class="lede">You'll get three weather stories. Map them, write your forecast, then record it as the station meteorologist.</p>
+    <p class="lede">You'll get four weather stories. Map them, write your forecast, then record it as the station meteorologist.</p>
     <label for="lgName">Your first name</label>
     <input id="lgName" autocomplete="given-name" maxlength="30">
     <label for="lgPer">Class period</label>
@@ -193,7 +193,7 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
   <main>
     <!-- STEP 1 -->
     <div class="screen" id="s1">
-      <h2 style="font-size:36px">Your three weather stories</h2>
+      <h2 style="font-size:36px">Your four weather stories</h2>
       <p class="lede">These are yours alone; nobody else in your class has this same set. Read each one carefully: it tells you which pressure system or front to draw, where it goes, and what weather it brings.</p>
       <div class="cards" id="myCards"></div>
       <h2 style="font-size:30px;margin-top:30px">Weather map guide</h2>
@@ -241,7 +241,7 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
     <!-- STEP 3 -->
     <div class="screen" id="s3">
       <h2 style="font-size:36px">Write your forecast</h2>
-      <p class="lede">You're the meteorologist. Explain all three weather stories on your map in your own words, and tell viewers <em>why</em> each system brings the weather it does. This is the script you'll read on air.</p>
+      <p class="lede">You're the meteorologist. Explain all four weather stories on your map in your own words, and tell viewers <em>why</em> each system brings the weather it does. This is the script you'll read on air.</p>
       <div class="report">
         <div>
           <label for="script" class="sr" style="font-weight:700">Your script</label>
@@ -332,7 +332,7 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
         <button class="btn ghost" onclick="window.print()">Print this period</button>
         <button class="btn ghost" id="tClearAll">Clear all student work on this Chromebook</button>
       </div>
-      <p class="lede noprint">Each student number gets a different set of three stories, from three different regions. Give every student in a period a different number.</p>
+      <p class="lede noprint">Each student number gets a different set of four stories, one from each region. Give every student in a period a different number.</p>
       <div class="tablewrap"><table class="key" id="tTable"></table></div>
     </div>
   </main>
@@ -393,7 +393,7 @@ const CARD = Object.fromEntries(CARDS.map(c=>[c.id,c]));
 const NAMES = {H:"High pressure",L:"Low pressure",cold:"Cold front",warm:"Warm front",stat:"Stationary front",
   sunny:"Sunny",partly:"Partly cloudy",cloudy:"Cloudy",rain:"Rain",thunder:"Thunderstorm",snow:"Snow",sleet:"Sleet / hail",tornado:"Tornado",windy:"Windy",fog:"Fog"};
 
-/* ---------- assignment: unique sets of 3 from 3 different regions ---------- */
+/* ---------- assignment: unique sets of 4, one from each region ---------- */
 function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return h>>>0}
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const assignCache={};
@@ -401,14 +401,13 @@ function assignments(period){
   if(assignCache[period])return assignCache[period];
   const r=rng(hashStr(SHUFFLE_KEY+"|P"+period));
   const byR={W:[],C:[],N:[],S:[]};CARDS.forEach(c=>byR[c.r].push(c.id));
-  const triples=[["W","C","N"],["W","C","S"],["W","N","S"],["C","N","S"]];
   let combos=[];
-  for(const t of triples)for(const a of byR[t[0]])for(const b of byR[t[1]])for(const c of byR[t[2]])combos.push([a,b,c]);
+  for(const a of byR.W)for(const b of byR.C)for(const c of byR.N)for(const d of byR.S)combos.push([a,b,c,d]);
   for(let i=combos.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[combos[i],combos[j]]=[combos[j],combos[i]]}
   const use={};CARDS.forEach(c=>use[c.id]=0);const used=new Set();const out=[];
   for(let s=0;s<MAX_STUDENTS;s++){
     let best=-1,bestScore=1e9;
-    for(let i=0;i<combos.length;i++){if(used.has(i))continue;const sc=use[combos[i][0]]+use[combos[i][1]]+use[combos[i][2]];if(sc<bestScore){bestScore=sc;best=i;if(sc===0)break}}
+    for(let i=0;i<combos.length;i++){if(used.has(i))continue;const sc=combos[i].reduce((t,id)=>t+use[id],0);if(sc<bestScore){bestScore=sc;best=i;if(sc===0)break}}
     used.add(best);combos[best].forEach(id=>use[id]++);out.push(combos[best]);
   }
   return assignCache[period]=out;
@@ -620,7 +619,7 @@ function renderMapCards(results){
       r=`<div class="result">${rs.map(x=>`<div class="${x.ok?"ok":"no"}">${x.ok?"✓":"✗"} ${x.label}</div>`).join("")}${all?"":`<div class="hintline">Look in ${c.st==="MT"||c.st==="ME"||c.st==="VT"?"the state of "+c.place:c.place.replace(/.*, /,"")} for ${esc(c.place)}${c.west?", then go just west of it":""}.</div>`}</div>`}
     return `<div class="mini ${c.r}"><b>${esc(c.place)}</b><div>${esc(c.text)}</div>${r}</div>`}).join("");
 }
-$("#checkMap").onclick=()=>{renderMapCards(true);const all=myCards().every(c=>checkCard(c).every(x=>x.ok));$("#toolTip").textContent=all?"Your map matches all three stories. Nice forecasting! Head to step 3.":"Some symbols are missing or too far from the right place. Fix the ones marked ✗ and check again."};
+$("#checkMap").onclick=()=>{renderMapCards(true);const all=myCards().every(c=>checkCard(c).every(x=>x.ok));$("#toolTip").textContent=all?"Your map matches all four stories. Nice forecasting! Head to step 3.":"Some symbols are missing or too far from the right place. Fix the ones marked ✗ and check again."};
 
 function mapSVGString(w=960,h=600){
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 960 600">${$("#base").innerHTML}${$("#labels").innerHTML}${itemsMarkup()}</svg>`;
@@ -636,15 +635,15 @@ const SYS_RX={H:/high[- ]pressure/i,L:/low[- ]pressure/i,cold:/cold front/i,warm
 const WX_RX={sunny:/sun|clear/i,partly:/partly/i,cloudy:/cloud|gray|grey/i,rain:/rain|shower|drizzle/i,thunder:/thunder|storm/i,snow:/snow/i,sleet:/sleet|hail|freezing/i,tornado:/tornado/i,windy:/wind|gust/i,fog:/fog/i};
 function updateReport(){
   const t=$("#script").value;const words=(t.match(/\S+/g)||[]).length;const secs=Math.round(words/130*60);
-  $("#meter").textContent=`${words} words, about ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} to read aloud. Aim for 150–250 words.`;
+  $("#meter").textContent=`${words} words, about ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} to read aloud. Aim for 200–300 words.`;
   const cs=myCards(),low=t.toLowerCase();
   const items=[
-    ["Names all three places",cs.every(c=>low.includes(c.key.toLowerCase()))],
+    ["Names all four places",cs.every(c=>low.includes(c.key.toLowerCase()))],
     ["Names each front or pressure system",cs.every(c=>c.need.every(n=>SYS_RX[n].test(t)))],
     ["Describes the weather at each place",cs.every(c=>c.wx.every(g=>g.some(x=>WX_RX[x].test(t))))],
-    ["Explains why at least 3 times (uses “because” or “so”)",((t.match(/\bbecause\b|\bso\b|\bwhich causes\b|\bthat means\b/gi)||[]).length)>=3],
+    ["Explains why at least 4 times (uses “because” or “so”)",((t.match(/\bbecause\b|\bso\b|\bwhich causes\b|\bthat means\b/gi)||[]).length)>=4],
     ["Opens like a newscast and signs off at the end",/(good (morning|afternoon|evening)|welcome|hello|hi\b)/i.test(t)&&/(back to you|that'?s (your|the) (forecast|weather)|stay (safe|dry|warm)|see you|have a great|signing off)/i.test(t)],
-    ["Long enough to cover all three stories (150+ words)",words>=150]
+    ["Long enough to cover all four stories (200+ words)",words>=200]
   ];
   $("#checklist").innerHTML=items.map(([l,ok])=>`<li class="${ok?"done":""}">${l}</li>`).join("");
 }
@@ -894,7 +893,7 @@ $("#tBack").onclick=()=>{location.hash="";route()};
 function keyLine(c){return `<b>${esc(c.place)}</b>: ${c.need.map(n=>NAMES[n]).join(", ")}${c.west?" (just west)":""}; ${c.wx.map(g=>g.map(x=>NAMES[x]).join("/")).join(", ")}`}
 function renderKey(){
   const p=+$("#tPer").value,n=Math.max(1,Math.min(MAX_STUDENTS,+$("#tCount").value||1)),a=assignments(p);
-  let h=`<caption style="text-align:left;font-family:var(--head);font-size:22px;padding:6px 0">Period ${p}</caption><tr><th>#</th><th>Story 1</th><th>Story 2</th><th>Story 3</th></tr>`;
+  let h=`<caption style="text-align:left;font-family:var(--head);font-size:22px;padding:6px 0">Period ${p}</caption><tr><th>#</th><th>Story 1</th><th>Story 2</th><th>Story 3</th><th>Story 4</th></tr>`;
   for(let i=0;i<n;i++)h+=`<tr><td>${i+1}</td>${a[i].map(id=>`<td>${keyLine(CARD[id])}</td>`).join("")}</tr>`;
   $("#tTable").innerHTML=h;
 }
