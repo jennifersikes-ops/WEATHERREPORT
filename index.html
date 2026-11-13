@@ -100,6 +100,8 @@ main{background:var(--paper);color:var(--ink);border-radius:0 0 14px 14px;paddin
 .report{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
 #script{width:100%;min-height:360px;padding:14px;border:2px solid #c3cfdf;border-radius:10px;font-size:18px;line-height:1.6;resize:vertical;background:#fff;color:var(--ink)}
 .meter{font-size:14px;color:#3b4a66;margin-top:6px}
+.gate{font-size:14px;font-weight:700;color:#b3261e;margin:8px 0 0;min-height:1.2em}
+nav.steps button.locked{opacity:.55}
 .panel{background:#fff;border-radius:12px;padding:14px}
 .panel h3{font-size:22px;margin-bottom:6px}
 .frames p{margin:6px 0;padding:6px 10px;border-radius:6px;background:#eef3f9;font-size:14.5px}
@@ -247,7 +249,8 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
           <label for="script" class="sr" style="font-weight:700">Your script</label>
           <textarea id="script" placeholder="Good evening! I'm ___ with the Weather Desk. Let's look at the map…"></textarea>
           <p class="meter" id="meter"></p>
-          <div class="row"><button class="btn ghost" id="copyScript">Copy my script</button><button class="btn" data-goto="4">Next: go on air</button></div>
+          <div class="row"><button class="btn ghost" id="copyScript">Copy my script</button><button class="btn" data-goto="4" id="toAir">Next: go on air</button></div>
+          <p class="gate" id="gateMsg" role="status"></p>
         </div>
         <div class="side">
           <div class="panel"><h3>Script checklist</h3><ul class="check" id="checklist"></ul></div>
@@ -511,7 +514,9 @@ function startApp(){
 }
 
 /* ---------- steps ---------- */
+let scriptReady=false;
 function go(n){
+  if(n===4&&!scriptReady){n=3;setTimeout(()=>{$("#gateMsg").scrollIntoView({block:"center"});$("#script").focus()},50)}
   document.querySelectorAll("nav.steps button").forEach(b=>b.setAttribute("aria-current",+b.dataset.step===n?"step":"false"));
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id==="s"+n));
   D.step=n;save();
@@ -635,7 +640,7 @@ const SYS_RX={H:/high[- ]pressure/i,L:/low[- ]pressure/i,cold:/cold front/i,warm
 const WX_RX={sunny:/sun|clear/i,partly:/partly/i,cloudy:/cloud|gray|grey/i,rain:/rain|shower|drizzle/i,thunder:/thunder|storm/i,snow:/snow/i,sleet:/sleet|hail|freezing/i,tornado:/tornado/i,windy:/wind|gust/i,fog:/fog/i};
 function updateReport(){
   const t=$("#script").value;const words=(t.match(/\S+/g)||[]).length;const secs=Math.round(words/130*60);
-  $("#meter").textContent=`${words} words, about ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} to read aloud. Aim for 200–300 words.`;
+  $("#meter").textContent=`${words} words, about ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} to read aloud. You need at least 150 words.`;
   const cs=myCards(),low=t.toLowerCase();
   const items=[
     ["Names all four places",cs.every(c=>low.includes(c.key.toLowerCase()))],
@@ -643,8 +648,14 @@ function updateReport(){
     ["Describes the weather at each place",cs.every(c=>c.wx.every(g=>g.some(x=>WX_RX[x].test(t))))],
     ["Explains why at least 4 times (uses “because” or “so”)",((t.match(/\bbecause\b|\bso\b|\bwhich causes\b|\bthat means\b/gi)||[]).length)>=4],
     ["Opens like a newscast and signs off at the end",/(good (morning|afternoon|evening)|welcome|hello|hi\b)/i.test(t)&&/(back to you|that'?s (your|the) (forecast|weather)|stay (safe|dry|warm)|see you|have a great|signing off)/i.test(t)],
-    ["Long enough to cover all four stories (200+ words)",words>=200]
+    ["Long enough to cover all four stories (150+ words)",words>=150]
   ];
+  scriptReady=items.every(([,ok])=>ok);
+  const left=items.filter(([,ok])=>!ok).length;
+  $("#toAir").disabled=!scriptReady;
+  const tab=document.querySelector('nav.steps button[data-step="4"]');tab.classList.toggle("locked",!scriptReady);
+  tab.title=scriptReady?"":"Finish the script checklist in step 3 first";
+  $("#gateMsg").textContent=scriptReady?"":`Check off everything on the script checklist to unlock step 4 (${left} left).`;
   $("#checklist").innerHTML=items.map(([l,ok])=>`<li class="${ok?"done":""}">${l}</li>`).join("");
 }
 $("#script").addEventListener("input",()=>{D.script=$("#script").value;updateReport();save()});
