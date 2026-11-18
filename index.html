@@ -39,6 +39,9 @@ header.top .wrap{display:flex;align-items:center;gap:16px;min-height:64px;flex-w
 nav.steps{display:flex;gap:4px;padding:14px 0 0;overflow-x:auto}
 nav.steps button{flex:1;min-width:150px;background:var(--studio-2);color:#cfe0f5;border:0;border-radius:10px 10px 0 0;padding:10px 14px;text-align:left;font-family:var(--head);font-size:20px}
 nav.steps button span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#0a2140;margin-right:8px;font-size:17px}
+nav.steps button.locked{opacity:.6}
+nav.steps button.locked span::after{content:"🔒";font-size:11px;margin-left:1px}
+.gate{background:#fdecec;border:2px solid var(--warm);color:#8a1015;border-radius:10px;padding:10px 12px;font-weight:700;margin:10px 0}
 nav.steps button[aria-current="step"]{background:var(--paper);color:var(--ink)}
 nav.steps button[aria-current="step"] span{background:var(--signal);color:var(--ink)}
 main{background:var(--paper);color:var(--ink);border-radius:0 0 14px 14px;padding:22px;min-height:70vh}
@@ -247,7 +250,8 @@ table.key th{background:#e2e9f3;font-family:var(--head);font-size:17px}
           <label for="script" class="sr" style="font-weight:700">Your script</label>
           <textarea id="script" placeholder="Good evening! I'm ___ with the Weather Desk. Let's look at the map…"></textarea>
           <p class="meter" id="meter"></p>
-          <div class="row"><button class="btn ghost" id="copyScript">Copy my script</button><button class="btn" data-goto="4">Next: go on air</button></div>
+          <div class="row"><button class="btn ghost" id="copyScript">Copy my script</button><button class="btn" data-goto="4" id="toAir">Next: go on air</button></div>
+          <p class="gate" id="gateMsg" role="alert" hidden></p>
         </div>
         <div class="side">
           <div class="panel"><h3>Script checklist</h3><ul class="check" id="checklist"></ul></div>
@@ -513,6 +517,15 @@ function startApp(){
 
 /* ---------- steps ---------- */
 function go(n){
+  if(n===4&&!scriptReady()){
+    const left=checkItems().filter(x=>!x[1]).map(x=>x[0]);
+    if(!$("#s3").classList.contains("on"))showStep(3);
+    $("#gateMsg").hidden=false;$("#gateMsg").textContent="Finish your script checklist before going on air. Still to do: "+left.join("; ")+".";
+    $("#gateMsg").scrollIntoView({behavior:"smooth",block:"center"});return;
+  }
+  showStep(n);
+}
+function showStep(n){
   document.querySelectorAll("nav.steps button").forEach(b=>b.setAttribute("aria-current",+b.dataset.step===n?"step":"false"));
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id==="s"+n));
   D.step=n;save();
@@ -638,14 +651,23 @@ function updateReport(){
   const t=$("#script").value;const words=(t.match(/\S+/g)||[]).length;const secs=Math.round(words/130*60);
   $("#meter").textContent=`${words} words, about ${Math.floor(secs/60)}:${String(secs%60).padStart(2,"0")} to read aloud. Aim for at least 100 words.`;
   const cs=myCards(),low=t.toLowerCase();
-  const items=[
+  const items=checkItems();
+  $("#checklist").innerHTML=items.map(([l,ok])=>`<li class="${ok?"done":""}">${l}</li>`).join("");
+  const ready=items.every(x=>x[1]);
+  const tab=document.querySelector('nav.steps button[data-step="4"]');tab.classList.toggle("locked",!ready);
+  tab.title=ready?"":"Finish the script checklist first";
+  if(ready)$("#gateMsg").hidden=true;
+}
+function scriptReady(){return checkItems().every(x=>x[1])}
+function checkItems(){
+  const t=(D&&D.script)||"";const words=(t.match(/\S+/g)||[]).length;const cs=myCards(),low=t.toLowerCase();
+  return [
     ["Names all three places",cs.every(c=>low.includes(c.key.toLowerCase()))],
     ["Names each front or pressure system",cs.every(c=>c.need.every(n=>SYS_RX[n].test(t)))],
     ["Describes the weather at each place",cs.every(c=>c.wx.every(g=>g.some(x=>WX_RX[x].test(t))))],
     ["Opens like a newscast and signs off at the end",/(good (morning|afternoon|evening)|welcome|hello|hi\b)/i.test(t)&&/(back to you|that'?s (your|the) (forecast|weather)|stay (safe|dry|warm)|see you|have a great|signing off)/i.test(t)],
     ["Long enough to cover all three stories (100+ words)",words>=100]
   ];
-  $("#checklist").innerHTML=items.map(([l,ok])=>`<li class="${ok?"done":""}">${l}</li>`).join("");
 }
 $("#script").addEventListener("input",()=>{D.script=$("#script").value;updateReport();save()});
 $("#frames").innerHTML=[
